@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Train Navigator RO</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap');
+html,body{margin:0;padding:0;width:100%;height:100%;background-color:#0a0e14;color:#e8f0fe;font-family:'Barlow',sans-serif;overflow:hidden;-webkit-text-size-adjust:100%;}
+*,*::before,*::after{box-sizing:border-box;}
+#header{width:100%;background-color:#111720;border-bottom:2px solid #00c8ff;padding:8px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;z-index:100;min-height:44px;}
+#hlogo{font-family:'Share Tech Mono',monospace;font-size:11px;color:#00c8ff;letter-spacing:2px;opacity:.6;white-space:nowrap;}
+#tbadge{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:#00c8ff;display:none;white-space:nowrap;}
+#rlabel{flex:1;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;color:#4a6080;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none;}
+#hsp{flex:1;}
+#gpswrap{display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a6080;}
+#gpsdot{width:8px;height:8px;border-radius:50%;background-color:#4a6080;flex-shrink:0;transition:background-color .3s;}
+#gpsdot.active{background-color:#00e676;box-shadow:0 0 8px #00e676;}
+#gpsdot.error{background-color:#ff3d57;}
+#btnchg{display:none;background:transparent;border:1px solid #1e2d40;color:#4a6080;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:1px;padding:4px 8px;border-radius:4px;cursor:pointer;-webkit-appearance:none;white-space:nowrap;}
+#wrap{width:100%;height:calc(100vh - 44px);display:flex;flex-direction:column;background-color:#0a0e14;}
+#sscreen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;gap:20px;background-color:#0a0e14;}
+.stitle{font-family:'Barlow Condensed',sans-serif;font-size:48px;font-weight:900;color:#00c8ff;text-align:center;line-height:.95;letter-spacing:-1px;}
+.ssub{font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a6080;letter-spacing:2px;text-align:center;margin-top:6px;}
+#op-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:360px;}
+.chip{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:4px 10px;border-radius:20px;border:1px solid #1e2d40;color:#4a6080;background-color:#0d1520;cursor:pointer;-webkit-appearance:none;}
+.chip.on{border-color:#00c8ff;color:#00c8ff;background-color:rgba(0,200,255,.08);}
+#srow{display:flex;width:100%;max-width:360px;border-radius:10px;overflow:hidden;border:2px solid #00c8ff;}
+#tinput{flex:1;font-family:'Share Tech Mono',monospace;font-size:30px;letter-spacing:5px;text-align:center;padding:14px 10px;background-color:#111720;color:#e8f0fe;-webkit-text-fill-color:#e8f0fe;border:none;outline:none;-webkit-appearance:none;appearance:none;border-radius:0;min-width:0;opacity:1;}
+#tinput::-webkit-input-placeholder{color:#4a6080;-webkit-text-fill-color:#4a6080;font-size:15px;letter-spacing:2px;}
+#btngo{background-color:#00c8ff;color:#0a0e14;-webkit-text-fill-color:#0a0e14;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;letter-spacing:2px;padding:14px 18px;border:none;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;border-radius:0;flex-shrink:0;}
+#smsg{font-family:'Share Tech Mono',monospace;font-size:11px;color:#00c8ff;text-align:center;min-height:18px;letter-spacing:1px;padding:0 16px;line-height:1.5;}
+#smsg.err{color:#ff3d57;}
+.hint{font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3d55;text-align:center;line-height:1.8;max-width:300px;}
+#loading{display:none;position:fixed;inset:0;background-color:rgba(10,14,20,.94);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+#loading.show{display:flex;}
+.spinner{width:42px;height:42px;border:3px solid #1e2d40;border-top-color:#00c8ff;border-radius:50%;animation:spin .75s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#ltxt{font-family:'Share Tech Mono',monospace;font-size:12px;color:#00c8ff;letter-spacing:2px;text-align:center;max-width:280px;line-height:1.6;}
+#ascreen{flex:1;display:none;flex-direction:column;overflow:hidden;background-color:#0a0e14;}
+#banner{background-color:#111720;border-bottom:1px solid #1e2d40;padding:9px 14px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;flex-shrink:0;}
+.blbl{font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a6080;letter-spacing:2px;}
+#nname{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;color:#e8f0fe;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#kmval{font-family:'Share Tech Mono',monospace;font-size:26px;color:#00c8ff;text-align:center;line-height:1;font-weight:bold;}
+#kmlbl{font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a6080;text-align:center;letter-spacing:2px;}
+#ntimes{text-align:right;}
+.trow{display:flex;justify-content:flex-end;align-items:baseline;gap:5px;}
+.ttag{font-family:'Share Tech Mono',monospace;font-size:9px;color:#4a6080;letter-spacing:1px;}
+.tval{font-family:'Share Tech Mono',monospace;font-size:15px;color:#ffd600;}
+#split{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
+#map{width:100%;height:100%;}
+#lwrap{overflow-y:auto;background-color:#0a0e14;border-left:1px solid #1e2d40;}
+#lwrap::-webkit-scrollbar{width:3px;}
+#lwrap::-webkit-scrollbar-track{background:#0a0e14;}
+#lwrap::-webkit-scrollbar-thumb{background:#1e2d40;}
+.si{display:grid;grid-template-columns:3px 1fr auto;align-items:stretch;border-bottom:1px solid rgba(30,45,64,.4);min-height:56px;background-color:#0a0e14;position:relative;}
+.si.passed{background-color:#0d1420;opacity:.4;}
+.si.cur{background-color:rgba(0,200,255,.05);}
+.sibar{background-color:#1e2d40;width:3px;align-self:stretch;}
+.si.passed .sibar{opacity:.3;}
+.si.cur .sibar{background-color:#00c8ff;}
+.siinfo{padding:7px 0 6px;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;}
+.siname{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;color:#e8f0fe;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
+.si.passed .siname{text-decoration:line-through;color:#4a6080;}
+.si.cur .siname{color:#00c8ff;}
+.sikm{font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a3d55;}
+.sitimes{padding:7px 8px 6px 4px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:1px;}
+.siarr{font-family:'Share Tech Mono',monospace;font-size:12px;color:#e8f0fe;line-height:1;}
+.sidep{font-family:'Share Tech Mono',monospace;font-size:11px;color:#ffd600;line-height:1;}
+.silbl{font-size:8px;color:#2a3d55;letter-spacing:.5px;font-family:'Share Tech Mono',monospace;}
+.si.passed .siarr,.si.passed .sidep{color:#2a3d55;}
+.si.cur::before{content:'';position:absolute;left:-4px;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background-color:#00c8ff;box-shadow:0 0 10px #00c8ff;z-index:2;}
+/* map layer toggle */
+#maptoggle{position:absolute;bottom:80px;right:10px;z-index:500;background-color:#111720;border:1px solid #1e2d40;color:#4a6080;font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 8px;border-radius:6px;cursor:pointer;-webkit-appearance:none;letter-spacing:1px;}
+#maptoggle.rail{border-color:#00c8ff;color:#00c8ff;}
+@media(max-width:600px){#split{grid-template-columns:1fr;grid-template-rows:38vh 1fr;}#lwrap{border-left:none;border-top:1px solid #1e2d40;}}
+</style>
+</head>
+<body>
+
+<!-- IMPORTANT: Înlocuiește această linie cu URL-ul tău Vercel după deploy! -->
+<script>
+  // ← SCHIMBĂ ASTA cu URL-ul tău după ce deployezi pe Vercel
+  var API_BASE = 'https://NUMELE-TAU.vercel.app/api/train';
+  // Exemplu: var API_BASE = 'https://train-api-vlad.vercel.app/api/train';
+</script>
+
+<div id="loading"><div class="spinner"></div><div id="ltxt">SE ÎNCARCĂ...</div></div>
+
+<div id="header">
+  <div id="hlogo">RO TRAIN NAV</div>
+  <div id="tbadge"></div>
+  <div id="rlabel"></div>
+  <div id="hsp"></div>
+  <div id="gpswrap"><div id="gpsdot"></div><span id="gpstxt">GPS</span></div>
+  <button id="btnchg" onclick="showSearch()">↩ SCHIMBĂ</button>
+</div>
+
+<div id="wrap">
+  <div id="sscreen">
+    <div>
+      <div class="stitle">TRAIN<br>NAVIGATOR</div>
+      <div class="ssub">CFR · TFC · ASTRA · IRC · REGIO · TOATE</div>
+    </div>
+    <div id="op-chips">
+      <button class="chip on">TOATE</button>
+      <button class="chip">CFR</button>
+      <button class="chip">TFC</button>
+      <button class="chip">ASTRA</button>
+      <button class="chip">IRC</button>
+      <button class="chip">REGIO</button>
+    </div>
+    <div id="srow">
+      <input id="tinput" type="tel" inputmode="numeric" pattern="[0-9]*"
+        placeholder="NR TREN" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button id="btngo" onclick="doSearch()">GO ▶</button>
+    </div>
+    <div id="smsg"></div>
+    <div class="hint">Toate companiile feroviare din România.<br>Date live din mersultrenurilor.infofer.ro</div>
+  </div>
+
+  <div id="ascreen">
+    <div id="banner">
+      <div>
+        <div class="blbl">STAȚIA URMĂTOARE</div>
+        <div id="nname">—</div>
+      </div>
+      <div>
+        <div id="kmval">—</div>
+        <div id="kmlbl">KM RĂMAȘI</div>
+      </div>
+      <div id="ntimes">
+        <div class="trow"><span class="ttag">SOS</span><span class="tval" id="narr">—</span></div>
+        <div class="trow"><span class="ttag">PL</span><span class="tval" id="ndep">—</span></div>
+      </div>
+    </div>
+    <div id="split">
+      <div id="map">
+        <button id="maptoggle" onclick="toggleRailLayer()">🛤 CFR</button>
+      </div>
+      <div id="lwrap"><div id="slist"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// COORDS DATABASE — 200+ stații CFR România
+// ═══════════════════════════════════════════════════════
+var COORDS = {
+  "Abrud":[46.2720,23.0680],"Adjud":[46.1030,27.1780],"Aiud":[46.3100,23.7260],
+  "Alba Iulia":[46.0660,23.5800],"Alesd":[46.9150,22.3960],"Alexandria":[43.9760,25.3320],
+  "Apahida":[46.8100,23.7350],"Arad":[46.1840,21.3090],"Arad Nord":[46.2090,21.3190],
+  "Avrig":[45.7050,24.3720],"Azuga":[45.4530,25.5560],
+  "Bacau":[46.5670,26.9140],"Baile Herculane":[44.8830,22.4160],"Baia Mare":[47.6573,23.5694],
+  "Bals":[44.3600,24.0930],"Barlad":[46.2290,27.6700],"Beius":[46.6740,22.3590],
+  "Bistrita":[47.1320,24.5000],"Bistrita Nord":[47.1320,24.5000],"Blaj":[46.1760,23.9170],
+  "Bod":[45.7330,25.6380],"Botosani":[47.7480,26.6650],"Brad":[46.1280,22.4420],
+  "Braila":[45.2692,27.9574],"Brasov":[45.6576,25.5976],"Breaza":[45.1850,25.6720],
+  "Brezoi":[45.3380,24.2560],"Brazi":[44.9860,26.0070],
+  "Bucuresti Nord":[44.4518,26.0849],"Bucuresti Basarab":[44.4489,26.0731],
+  "Bucuresti Baneasa":[44.4951,26.0841],"Bucuresti Obor":[44.4530,26.1072],
+  "Bucuresti Progresu":[44.3961,26.0634],"Bucuresti Cotroceni":[44.4354,26.0677],
+  "Bucuresti Titan Sud":[44.4150,26.1650],"Bucuresti Militari":[44.4380,26.0180],
+  "Bucuresti Giulesti":[44.4700,26.0450],
+  "Bulz":[46.9980,22.6320],"Busteni":[45.4090,25.5360],"Buzau":[45.1500,26.8200],
+  "Caineni":[45.4060,24.2060],"Calafat":[43.9940,22.9350],"Campina":[45.1260,25.7390],
+  "Campulung":[45.2570,25.0490],"Campulung Moldovenesc":[47.5260,25.5690],
+  "Campia Turzii":[46.5650,23.8850],"Caracal":[44.1180,24.3550],"Caransebes":[45.4150,22.2150],
+  "Carei":[47.6870,22.4570],"Catcau":[47.0380,23.8380],"Cenad":[46.1310,20.5670],
+  "Cernavoda":[44.3330,28.0200],"Chisineu-Cris":[46.5250,21.5140],
+  "Cluj-Napoca":[46.7680,23.5890],"Cluj Napoca":[46.7680,23.5890],
+  "Comarnic":[45.2530,25.6350],"Constanta":[44.1800,28.6340],"Copsa Mica":[46.1170,24.2250],
+  "Corabia":[43.7760,24.4980],"Covasna":[45.8500,26.1820],"Craiova":[44.3198,23.7989],
+  "Curtea de Arges":[45.1380,24.6710],"Curtici":[46.3470,21.3060],
+  "Dej Calatori":[47.1420,23.8650],"Deva":[45.8780,22.9100],"Deta":[45.3920,21.2280],
+  "Drobeta-Turnu Severin":[44.6320,22.6560],"Drobeta Turnu Severin":[44.6320,22.6560],
+  "Dragasani":[44.6570,24.2740],
+  "Fagaras":[45.8430,24.9720],"Falticeni":[47.4580,26.2980],"Faurei":[45.0820,27.2490],
+  "Feldioara":[45.7610,25.5910],"Fetesti":[44.3750,27.8460],"Fieni":[45.1290,25.4090],
+  "Filiasi":[44.5580,23.5180],"Floresti":[46.7700,23.4960],"Floresti Prahova":[44.9760,26.0580],
+  "Focsani":[45.6960,27.1870],
+  "Gaesti":[44.7210,25.3290],"Galati":[45.4353,28.0080],"Gataia":[45.4290,21.4320],
+  "Ghimbav":[45.6620,25.5120],"Gherla":[47.0270,23.9050],"Ghimes":[46.5280,26.3150],
+  "Giurgiu":[43.9040,25.9700],"Giurgiu Nord":[43.9380,25.9680],
+  "Gura Humorului":[47.5500,25.8850],"Gurahont":[46.2450,22.3420],
+  "Harman":[45.7080,25.6610],"Holod":[46.8010,22.1260],"Huedin":[46.8760,22.9190],
+  "Hunedoara":[45.7590,22.9160],"Husi":[46.6810,28.0590],
+  "Iasi":[47.1585,27.6014],"Ilva Mica":[47.3240,24.5660],"Ineu":[46.4280,21.8360],
+  "Intorsura Buzaului":[45.6740,26.0300],
+  "Jibou":[47.2600,23.2510],"Jimbolia":[45.7930,20.7180],
+  "Lehliu":[44.4360,26.8500],"Lipova":[46.0870,21.6930],"Lotru":[45.3640,24.1110],
+  "Lovrin":[45.9280,20.9390],"Lugoj":[45.6890,21.9030],"Lunca Bradului":[46.9530,24.9450],
+  "Lupeni":[45.3590,23.2340],
+  "Macin":[45.2470,28.1430],"Marasesti":[45.8850,27.2260],"Marghita":[47.3460,22.3310],
+  "Medgidia":[44.2530,28.2720],"Medias":[46.1580,24.3520],"Mehadia":[44.9060,22.3610],
+  "Miercurea Ciuc":[46.3580,25.8020],"Mioveni":[44.9590,24.9290],"Mogosaia":[44.5210,25.9980],
+  "Moreni":[44.9910,25.6480],
+  "Nadlac":[46.1750,20.7420],"Nasaud":[47.2840,24.4050],
+  "Odorheiu Secuiesc":[46.3050,25.2980],"Onesti":[46.2370,26.7790],
+  "Oradea":[47.0469,21.9189],"Orastie":[45.8370,23.2000],"Orsova":[44.7240,22.3860],
+  "Pascani":[47.2490,26.7280],"Pecica":[46.1600,21.0730],"Periam":[46.0270,20.8880],
+  "Petrosani":[45.4140,23.3700],"Pitesti":[44.8560,24.8700],
+  "Ploiesti Sud":[44.9360,26.0380],"Ploiesti Vest":[44.9440,26.0150],"Ploiesti Est":[44.9390,26.0600],
+  "Predeal":[45.5080,25.5760],"Pucioasa":[45.0700,25.4280],
+  "Radna":[46.1180,21.6760],"Ramnicu Valcea":[45.0990,24.3680],"Rasnov":[45.5900,25.4610],
+  "Reghin":[46.7720,24.7090],"Roman":[46.9210,26.9320],"Rosiori Nord":[44.1040,24.9700],
+  "Salonta":[46.8020,21.6640],"Salva":[47.2750,24.0880],"Sannicolau Mare":[46.0730,20.6280],
+  "Satu Mare":[47.7928,22.8859],"Sfantu Gheorghe":[45.8640,25.7880],
+  "Sibiu":[45.7983,24.1256],"Sighetu Marmatiei":[47.9270,23.8890],"Sighisoara":[46.2190,24.7950],
+  "Simeria":[45.8520,22.8540],"Simleul Silvaniei":[47.2330,22.8030],"Sinaia":[45.3490,25.5530],
+  "Slatina":[44.4310,24.3640],"Slobozia":[44.5640,27.3640],"Stei":[46.5330,22.4730],
+  "Strehaia":[44.6170,23.1820],
+  "Suceava":[47.6510,26.2540],"Suceava Nord":[47.6620,26.2480],
+  "Talmaciu":[45.6880,24.2820],"Targoviste":[44.9270,25.4570],"Targu Mures":[46.5426,24.5577],
+  "Targu Jiu":[45.0350,23.2750],"Targu Neamt":[47.2060,26.3680],
+  "Tasnad":[47.4620,22.5740],"Tecuci":[45.8490,27.4230],"Teius":[46.1890,23.6810],
+  "Timisoara Nord":[45.7597,21.2381],"Timisoara Est":[45.7530,21.2580],
+  "Titu":[44.6560,25.5840],"Toplet":[44.8360,22.3300],"Toplita":[46.9200,25.3430],
+  "Tulcea":[45.1780,28.8030],"Tulcea Oras":[45.1780,28.8030],
+  "Turda":[46.5670,23.7840],"Turnu Magurele":[43.7460,24.8820],
+  "Uricani":[45.3310,23.1490],"Urlati":[44.9880,26.2400],"Urziceni":[44.7160,26.6480],
+  "Vadu Crisului":[46.9610,22.4250],"Valcele":[45.6760,25.5940],"Vascau":[46.4740,22.4690],
+  "Vaslui":[46.6380,27.7280],"Vatra Dornei":[47.3480,25.3590],"Victoria":[45.7310,24.6900],
+  "Videle":[44.2850,25.5140],"Vintu de Jos":[45.9840,23.4890],"Vulcan":[45.3830,23.2770],
+  "Zalau":[47.1840,23.0630],"Zarnesti":[45.5520,25.3490],"Zimnicea":[43.6500,25.3680],
+  // stații suplimentare TFC
+  "Piatra Neamt":[46.9270,26.3720],"Resita Nord":[45.2960,21.8880],"Resita Sud":[45.2870,21.8830],
+  "Deva":[45.8780,22.9100],"Hateg":[45.6010,22.9420],"Petila":[45.3630,23.4440],
+  "Targu Carbunesti":[44.9570,23.5140],"Rovinari":[44.9120,23.1730],"Turceni":[44.0450,23.4130],
+  "Calimanesti":[45.2370,24.3350],"Ramnicu Valcea":[45.0990,24.3680],
+  "Curtea de Arges":[45.1380,24.6710],"Campulung Muscel":[45.2570,25.0490],
+  "Moinesti":[46.4700,26.4780],"Comanesti":[46.4220,26.4300],"Darmanesti":[46.3550,26.5350],
+  "Palanca":[46.4670,26.7200],"Harlau":[47.4310,26.9090],"Targu Frumos":[47.2080,26.9920],
+  "Piatra Neamt":[46.9270,26.3720],"Bicaz":[46.8620,26.0820],
+};
+
+function norm(n) {
+  return (n||'').trim()
+    .replace(/[ăÄ]/g,'a').replace(/â/g,'a').replace(/Â/g,'A')
+    .replace(/î/g,'i').replace(/Î/g,'I')
+    .replace(/[șşŞ]/g,'s').replace(/[Ș]/g,'S')
+    .replace(/[țţŢ]/g,'t').replace(/[Ț]/g,'T')
+    .replace(/\s+/g,' ');
+}
+
+function getCoords(name) {
+  if (!name) return null;
+  if (COORDS[name]) return COORDS[name];
+  var n = norm(name);
+  for (var k in COORDS) { if (norm(k)===n) return COORDS[k]; }
+  for (var k in COORDS) {
+    var nk=norm(k);
+    if (n.indexOf(nk)===0||nk.indexOf(n)===0) return COORDS[k];
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+var G = {
+  trainNo:null, stations:[], curIdx:0,
+  lat:null, lng:null, watchId:null,
+  map:null, marker:null,
+  railLayer:null, railOn:false,
+};
+
+function el(id){return document.getElementById(id);}
+function showLoad(msg){el('ltxt').textContent=msg||'SE ÎNCARCĂ...';el('loading').classList.add('show');}
+function hideLoad(){el('loading').classList.remove('show');}
+function setMsg(msg,err){el('smsg').textContent=msg;el('smsg').className=err?'err':'';}
+
+el('tinput').addEventListener('keyup',function(e){if(e.key==='Enter'||e.keyCode===13)doSearch();});
+document.querySelectorAll('.chip').forEach(function(c){
+  c.addEventListener('click',function(){
+    document.querySelectorAll('.chip').forEach(function(x){x.classList.remove('on');});
+    c.classList.add('on');
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// SEARCH — cere GPS imediat la apăsarea GO
+// ═══════════════════════════════════════════════════════
+function doSearch() {
+  var no = el('tinput').value.replace(/\D/g,'').trim();
+  if (!no) { setMsg('Introdu numărul trenului!',true); return; }
+
+  // Cere GPS imediat (pe iOS trebuie declanșat dintr-un tap)
+  requestGPS();
+
+  // Verifică dacă API_BASE e configurat
+  if (!API_BASE || API_BASE.indexOf('NUMELE-TAU') > -1) {
+    setMsg('⚠️ Configurează API_BASE în fișier cu URL-ul tău Vercel!', true);
+    return;
+  }
+
+  showLoad('CAUT TRENUL ' + no + '...');
+  setMsg('');
+
+  var url = API_BASE + '?tren=' + no;
+  fetch(url)
+    .then(function(r){
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
+    .then(function(data){
+      hideLoad();
+      if (!data.ok || !data.stops || data.stops.length===0) {
+        setMsg('Trenul ' + no + ' nu a fost găsit.',true);
+        return;
+      }
+      // Adaugă coordonate din baza locală
+      var stations = data.stops.map(function(s){
+        var c = getCoords(s.name);
+        return {
+          name: s.name, km: s.km||0,
+          arr: s.arr||'', dep: s.dep||'',
+          lat: c?c[0]:0, lng: c?c[1]:0,
+        };
+      });
+      G.trainNo = no;
+      G.stations = stations;
+      G.curIdx = 0;
+      launchApp();
+    })
+    .catch(function(err){
+      hideLoad();
+      setMsg('Eroare conexiune la API: '+err.message,true);
+    });
+}
+
+function requestGPS() {
+  if (!navigator.geolocation) return;
+  // O singură citire ca să declanșeze permisiunea pe iOS
+  navigator.geolocation.getCurrentPosition(
+    function(pos){ onPos(pos); },
+    function(){},
+    {enableHighAccuracy:true, timeout:5000}
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// APP
+// ═══════════════════════════════════════════════════════
+function launchApp() {
+  el('sscreen').style.display='none';
+  el('ascreen').style.display='flex';
+  el('tbadge').textContent=G.trainNo;
+  el('tbadge').style.display='block';
+  if (G.stations.length>=2) {
+    el('rlabel').textContent=G.stations[0].name+' → '+G.stations[G.stations.length-1].name;
+    el('rlabel').style.display='block';
+  }
+  el('btnchg').style.display='block';
+  renderList();
+  initMap();
+  startGPS();
+  updateBanner();
+}
+
+function showSearch() {
+  el('ascreen').style.display='none';
+  el('sscreen').style.display='flex';
+  el('tbadge').style.display='none';
+  el('rlabel').style.display='none';
+  el('btnchg').style.display='none';
+  if (G.watchId){navigator.geolocation.clearWatch(G.watchId);G.watchId=null;}
+}
+
+function renderList() {
+  var list=el('slist'); list.innerHTML='';
+  G.stations.forEach(function(st,i){
+    var cls='si'+(i<G.curIdx?' passed':i===G.curIdx?' cur':'');
+    var div=document.createElement('div');
+    div.className=cls; div.id='si'+i;
+    var arrH=st.arr?'<div class="silbl">SOS</div><div class="siarr">'+st.arr+'</div>':'';
+    var depH=st.dep?'<div class="silbl">PL</div><div class="sidep">'+st.dep+'</div>':'';
+    div.innerHTML='<div class="sibar"></div>'+
+      '<div class="siinfo"><div class="siname">'+esc(st.name)+'</div>'+
+      (st.km?'<div class="sikm">km '+st.km+'</div>':'')+
+      '</div><div class="sitimes">'+arrH+depH+'</div>';
+    list.appendChild(div);
+  });
+  scrollToCur();
+}
+
+function scrollToCur(){
+  var e=el('si'+G.curIdx);
+  if(e) e.scrollIntoView({block:'center',behavior:'smooth'});
+}
+
+function updateBanner(){
+  var next=G.stations[G.curIdx]; if(!next) return;
+  el('nname').textContent=next.name;
+  el('narr').textContent=next.arr||'—';
+  el('ndep').textContent=next.dep||'—';
+  if(G.lat&&next.lat&&next.lng){
+    el('kmval').textContent=hav(G.lat,G.lng,next.lat,next.lng).toFixed(1);
+  } else {
+    el('kmval').textContent='—';
+  }
+}
+
+// GPS
+function startGPS(){
+  if(!navigator.geolocation){gpsSet('error','NO GPS');return;}
+  gpsSet('','WAIT');
+  G.watchId=navigator.geolocation.watchPosition(onPos,function(){gpsSet('error','ERR');},{
+    enableHighAccuracy:true,maximumAge:3000,timeout:15000
+  });
+}
+
+function onPos(pos){
+  G.lat=pos.coords.latitude; G.lng=pos.coords.longitude;
+  gpsSet('active',Math.round(pos.coords.accuracy)+'m');
+  moveMarker(); checkProgress(); updateBanner();
+}
+
+function gpsSet(cls,txt){el('gpsdot').className=cls;el('gpstxt').textContent=txt;}
+
+function checkProgress(){
+  if(!G.lat||!G.stations.length) return;
+  var best=G.curIdx,bestD=Infinity;
+  for(var i=G.curIdx;i<G.stations.length;i++){
+    var st=G.stations[i];
+    if(!st.lat||!st.lng) continue;
+    var d=hav(G.lat,G.lng,st.lat,st.lng);
+    if(d<bestD){bestD=d;best=i;}
+  }
+  if(bestD<0.35&&best>=G.curIdx){
+    var ni=Math.min(best+1,G.stations.length-1);
+    if(ni!==G.curIdx){G.curIdx=ni;renderList();}
+  }
+}
+
+// MAP
+function initMap(){
+  if(G.map){G.map.remove();G.map=null;G.marker=null;G.railLayer=null;}
+  G.map=L.map('map',{zoomControl:true,attributionControl:false});
+
+  // Base: dark CartoMap
+  var baseLayer=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19});
+  baseLayer.addTo(G.map);
+
+  // OpenRailwayMap layer (oprit implicit)
+  G.railLayer=L.tileLayer('https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png',{
+    maxZoom:19, opacity:0.8,
+    attribution:'<a href="https://www.openrailwaymap.org/">OpenRailwayMap</a>'
+  });
+
+  var coords=[];
+  G.stations.forEach(function(st){if(st.lat&&st.lng)coords.push([st.lat,st.lng]);});
+  if(coords.length>=2){
+    var line=L.polyline(coords,{color:'#00c8ff',weight:3,opacity:.7}).addTo(G.map);
+    G.map.fitBounds(line.getBounds(),{padding:[24,24]});
+  } else {
+    G.map.setView([45.9,24.9],7);
+  }
+
+  G.stations.forEach(function(st,i){
+    if(!st.lat||!st.lng) return;
+    var isF=i===0,isL=i===G.stations.length-1;
+    L.circleMarker([st.lat,st.lng],{
+      radius:(isF||isL)?7:4,
+      color:isF?'#00e676':isL?'#ff3d57':'#00c8ff',
+      fillColor:isF?'#00e676':isL?'#ff3d57':'#0a0e14',
+      fillOpacity:1,weight:2
+    }).addTo(G.map).bindPopup('<b>'+esc(st.name)+'</b><br>'+(st.arr||'')+(st.dep?' / '+st.dep:''));
+  });
+}
+
+function toggleRailLayer(){
+  if(!G.map) return;
+  G.railOn=!G.railOn;
+  var btn=el('maptoggle');
+  if(G.railOn){
+    G.railLayer.addTo(G.map);
+    btn.textContent='🗺 DARK';
+    btn.classList.add('rail');
+  } else {
+    G.map.removeLayer(G.railLayer);
+    btn.textContent='🛤 CFR';
+    btn.classList.remove('rail');
+  }
+}
+
+function moveMarker(){
+  if(!G.map||!G.lat) return;
+  var pos=[G.lat,G.lng];
+  if(!G.marker){
+    var icon=L.divIcon({
+      html:'<div style="width:18px;height:18px;background:#ff6b35;border:3px solid #fff;border-radius:50%;box-shadow:0 0 14px #ff6b35;"></div>',
+      iconSize:[18,18],iconAnchor:[9,9],className:''
+    });
+    G.marker=L.marker(pos,{icon:icon,zIndexOffset:1000}).addTo(G.map);
+  } else { G.marker.setLatLng(pos); }
+  G.map.panTo(pos,{animate:true,duration:1});
+}
+
+function hav(lat1,lng1,lat2,lng2){
+  var R=6371,dL=(lat2-lat1)*Math.PI/180,dG=(lng2-lng1)*Math.PI/180;
+  var a=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+</body>
+</html>
